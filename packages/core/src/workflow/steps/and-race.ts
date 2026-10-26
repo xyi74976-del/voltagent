@@ -138,6 +138,16 @@ export function andRace<
               });
             } else if (winner.success) {
               traceContext.endStepSpan(childSpan, "completed", { output: winner.result });
+            } else if (
+              winner.error instanceof Error &&
+              winner.error.message === "WORKFLOW_SUSPENDED"
+            ) {
+              traceContext.endStepSpan(childSpan, "suspended");
+            } else if (
+              winner.error instanceof Error &&
+              winner.error.message === "WORKFLOW_CANCELLED"
+            ) {
+              traceContext.endStepSpan(childSpan, "cancelled");
             } else {
               traceContext.endStepSpan(childSpan, "error", { error: winner.error });
             }

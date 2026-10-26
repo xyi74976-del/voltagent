@@ -37,7 +37,7 @@ afterEach(() => {
 });
 
 describe("andRace", () => {
-  it.each(["completed", "error"] as const)(
+  it.each(["completed", "error", "suspended", "cancelled"] as const)(
     "should settle a public workflow with %s before the losing step settles",
     async (status) => {
       const globals = globalThis as typeof globalThis & {
@@ -76,9 +76,11 @@ describe("andRace", () => {
           steps: [
             andThen({
               id: "winner",
-              execute: async () => {
+              execute: async ({ suspend, abort }) => {
                 await loserStarted.promise;
                 if (status === "error") throw failure;
+                if (status === "suspended") return suspend("Wait for approval");
+                if (status === "cancelled") return abort();
                 return "winner";
               },
             }),
@@ -102,7 +104,8 @@ describe("andRace", () => {
           expect(result.result).toBe("winner");
           expect(nextStep).toHaveBeenCalledOnce();
         } else {
-          expect(result.error).toBe(failure);
+          if (status === "error") expect(result.error).toBe(failure);
+          else expect(result.error).toBeUndefined();
           expect(nextStep).not.toHaveBeenCalled();
         }
 
@@ -110,12 +113,14 @@ describe("andRace", () => {
           args[3]?.parentStepId === "race" ? [createSpan.mock.results[index].value] : [],
         );
         expect(childSpans).toHaveLength(2);
+        const expectedWinnerEnd =
+          status === "completed"
+            ? [childSpans[0], status, { output: "winner" }]
+            : status === "error"
+              ? [childSpans[0], status, { error: failure }]
+              : [childSpans[0], status];
         expect(endSpan.mock.calls.filter(([span]) => span === childSpans[0])).toEqual([
-          [
-            childSpans[0],
-            status,
-            status === "completed" ? { output: "winner" } : { error: failure },
-          ],
+          expectedWinnerEnd,
         ]);
         expect(endSpan.mock.calls.filter(([span]) => span === childSpans[1])).toEqual([
           [childSpans[1], "skipped", { skippedReason: "Another step won the race" }],
