@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RecursiveChunker } from "../chunkers/recursive-chunker";
+import { defaultTokenizer, whitespaceTokenizer } from "../utils/tokenizer";
 
 describe("RecursiveChunker", () => {
   it("splits long paragraphs then falls back to sentence/token chunking", () => {
@@ -22,5 +23,18 @@ describe("RecursiveChunker", () => {
     const chunks = chunker.chunk(text, { maxTokens: 6, overlapTokens: 3 });
     const overlap = chunks.filter((c) => c.label?.includes("overlap"));
     expect(overlap.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    { name: "whitespace", tokenizer: whitespaceTokenizer },
+    { name: "tiktoken", tokenizer: defaultTokenizer },
+  ])("retains later sentence offsets in token fallback ($name)", ({ tokenizer }) => {
+    const text = "A preamble.\n\nOne. Two. alpha beta gamma delta epsilon.";
+    const chunks = new RecursiveChunker(tokenizer).chunk(text, { maxTokens: 2 });
+    const tokenChunks = chunks.filter((chunk) => chunk.metadata?.sourceType === "sentence-token");
+    expect(tokenChunks.length).toBeGreaterThan(0);
+    for (const chunk of tokenChunks) {
+      expect(text.slice(chunk.start, chunk.end)).toBe(chunk.content);
+    }
   });
 });

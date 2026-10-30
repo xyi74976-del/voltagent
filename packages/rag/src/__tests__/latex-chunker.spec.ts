@@ -19,6 +19,7 @@ describe("LatexChunker", () => {
     ],
     [" \r\n  unsectioned body \n ", 100],
     ["\\section{Long}\nalpha beta gamma delta epsilon zeta", 2],
+    ["\\section{Long}\nOne. Two. alpha beta gamma delta epsilon.", 2],
   ])("keeps source ranges in the original document: %s", (tex, maxTokens) => {
     const chunks = new LatexChunker(whitespaceTokenizer).chunk(tex, { maxTokens });
     expect(chunks.length).toBeGreaterThan(0);

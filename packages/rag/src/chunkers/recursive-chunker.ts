@@ -89,7 +89,7 @@ export class RecursiveChunker implements Chunker<RecursiveChunkerOptions> {
 
         // Fallback to token chunking for oversized sentence group
         return this.tokenChunker
-          .chunk(chunk.content, {
+          .chunk(paragraph.text.slice(chunk.start, chunk.end), {
             maxTokens,
             overlap: overlapTokens,
             tokenizer,
@@ -101,8 +101,8 @@ export class RecursiveChunker implements Chunker<RecursiveChunkerOptions> {
           .map((tokenChunk, idx) => ({
             ...tokenChunk,
             id: `recursive-${chunks.length + idx}`,
-            start: paragraph.start + (tokenChunk.start ?? 0),
-            end: paragraph.start + (tokenChunk.end ?? 0),
+            start: paragraph.start + chunk.start + tokenChunk.start,
+            end: paragraph.start + chunk.start + tokenChunk.end,
             metadata: {
               ...tokenChunk.metadata,
               ...buildMetadata({
