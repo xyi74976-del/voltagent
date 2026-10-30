@@ -1,5 +1,6 @@
 import type { Chunk, ChunkMetadataInput, Chunker, Tokenizer } from "../types";
 import { buildMetadata } from "../utils/metadata";
+import { buildLineMap, positionForRange } from "../utils/position";
 import { defaultTokenizer } from "../utils/tokenizer";
 import { RecursiveChunker } from "./recursive-chunker";
 
@@ -12,6 +13,7 @@ export type LatexChunkerOptions = {
 type LatexSection = {
   heading: string | null;
   content: string;
+  start: number;
   kind: "section" | "subsection" | "subsubsection" | "none";
 };
 
@@ -25,7 +27,12 @@ function splitLatex(text: string): LatexSection[] {
     const start = match.index;
     const content = text.slice(lastIndex, start).trim();
     if (content) {
-      sections.push({ heading: currentHeading, content, kind: currentKind });
+      sections.push({
+        heading: currentHeading,
+        content,
+        start: lastIndex + text.slice(lastIndex, start).indexOf(content),
+        kind: currentKind,
+      });
     }
     currentHeading = match[2]?.trim() ?? null;
     currentKind = (match[1] as LatexSection["kind"]) ?? "none";
@@ -34,7 +41,12 @@ function splitLatex(text: string): LatexSection[] {
 
   const tail = text.slice(lastIndex).trim();
   if (tail) {
-    sections.push({ heading: currentHeading, content: tail, kind: currentKind });
+    sections.push({
+      heading: currentHeading,
+      content: tail,
+      start: lastIndex + text.slice(lastIndex).indexOf(tail),
+      kind: currentKind,
+    });
   }
 
   return sections.filter((s) => s.content.length > 0 || s.heading);
@@ -53,6 +65,7 @@ export class LatexChunker implements Chunker<LatexChunkerOptions> {
     const tokenizer = options?.tokenizer ?? this.tokenizer;
     const maxTokens = Math.max(1, options?.maxTokens ?? 300);
     const label = options?.label ?? "latex";
+    const lineMap = buildLineMap(text);
 
     const sections = splitLatex(text);
     const chunks: Chunk[] = [];
@@ -68,9 +81,13 @@ export class LatexChunker implements Chunker<LatexChunkerOptions> {
         baseMetadata: options?.baseMetadata,
       });
       sectionChunks.forEach((chunk, cidx) => {
+        const start = section.start + chunk.start;
+        const end = section.start + chunk.end;
         chunks.push({
           ...chunk,
           id: `${label}-${idx}-${cidx}`,
+          start,
+          end,
           metadata: buildMetadata({
             format: "latex",
             sourceType: "latex",
@@ -78,6 +95,7 @@ export class LatexChunker implements Chunker<LatexChunkerOptions> {
             path: section.heading ? [section.heading] : undefined,
             extra: {
               ...chunk.metadata,
+              ...positionForRange(start, end, lineMap),
               heading: section.heading,
               sectionType: section.kind,
             },
