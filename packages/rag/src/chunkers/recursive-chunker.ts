@@ -29,7 +29,7 @@ export class RecursiveChunker implements Chunker<RecursiveChunkerOptions> {
     const maxTokens = Math.max(1, options?.maxTokens ?? 300);
     const overlapTokens = Math.max(0, options?.overlapTokens ?? 0);
     const label = options?.label ?? "recursive";
-    const lineMap = buildLineMap(text);
+    let lineMap: number[] | undefined;
 
     const paragraphs = splitIntoParagraphs(text, tokenizer);
     if (paragraphs.length === 0) return [];
@@ -90,6 +90,8 @@ export class RecursiveChunker implements Chunker<RecursiveChunkerOptions> {
         }
 
         // Fallback to token chunking for oversized sentence group
+        lineMap ??= buildLineMap(text);
+        const positions = lineMap;
         return this.tokenChunker
           .chunk(paragraph.text.slice(chunk.start, chunk.end), {
             maxTokens,
@@ -116,7 +118,7 @@ export class RecursiveChunker implements Chunker<RecursiveChunkerOptions> {
                   ...positionForRange(
                     paragraph.start + chunk.start + tokenChunk.start,
                     paragraph.start + chunk.start + tokenChunk.end,
-                    lineMap,
+                    positions,
                   ),
                 },
               }),
