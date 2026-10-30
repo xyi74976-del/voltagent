@@ -1,5 +1,6 @@
 import type { Chunk, ChunkMetadataInput, Chunker, Tokenizer } from "../types";
 import { buildMetadata } from "../utils/metadata";
+import { buildLineMap, positionForRange } from "../utils/position";
 import { splitIntoParagraphs } from "../utils/text";
 import { defaultTokenizer } from "../utils/tokenizer";
 import { SentenceChunker } from "./sentence-chunker";
@@ -28,6 +29,7 @@ export class RecursiveChunker implements Chunker<RecursiveChunkerOptions> {
     const maxTokens = Math.max(1, options?.maxTokens ?? 300);
     const overlapTokens = Math.max(0, options?.overlapTokens ?? 0);
     const label = options?.label ?? "recursive";
+    const lineMap = buildLineMap(text);
 
     const paragraphs = splitIntoParagraphs(text, tokenizer);
     if (paragraphs.length === 0) return [];
@@ -109,7 +111,14 @@ export class RecursiveChunker implements Chunker<RecursiveChunkerOptions> {
                 format: "text",
                 sourceType: "sentence-token",
                 base: options,
-                extra: { paragraphIndex },
+                extra: {
+                  paragraphIndex,
+                  ...positionForRange(
+                    paragraph.start + chunk.start + tokenChunk.start,
+                    paragraph.start + chunk.start + tokenChunk.end,
+                    lineMap,
+                  ),
+                },
               }),
             },
           }));

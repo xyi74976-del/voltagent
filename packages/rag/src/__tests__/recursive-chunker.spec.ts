@@ -37,4 +37,19 @@ describe("RecursiveChunker", () => {
       expect(text.slice(chunk.start, chunk.end)).toBe(chunk.content);
     }
   });
+
+  it.each([
+    { newline: "\n", start: 18, end: 28 },
+    { newline: "\r\n", start: 20, end: 30 },
+  ])("rebases token fallback positions with $newline line endings", ({ newline, start, end }) => {
+    const text = `A preamble.${newline}${newline}One. Two. alpha beta gamma delta epsilon.`;
+    const chunks = new RecursiveChunker(whitespaceTokenizer).chunk(text, { maxTokens: 2 });
+    expect(chunks.find((chunk) => chunk.content === "Two. alpha")).toMatchObject({
+      start,
+      end,
+      metadata: {
+        position: { start: { line: 3, column: 6 }, end: { line: 3, column: 16 } },
+      },
+    });
+  });
 });
