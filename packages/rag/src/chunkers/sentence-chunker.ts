@@ -41,12 +41,14 @@ export class SentenceChunker implements Chunker<SentenceChunkerOptions> {
       const startTokenIndex = tokenizer.countTokens(text.slice(0, startSentence.start));
       const endTokenIndex = tokenizer.countTokens(text.slice(0, endSentence.end)) - 1;
       const content = sliceByTokenRange(text, tokens, startTokenIndex, endTokenIndex);
+      const start = tokens[Math.max(0, startTokenIndex)]?.start ?? 0;
+      const end = tokens[Math.min(tokens.length - 1, endTokenIndex)]?.end ?? text.length;
 
       chunks.push({
         id: `sentence-${chunkIndex}`,
         content,
-        start: startSentence.start,
-        end: endSentence.end,
+        start,
+        end,
         metadata: buildMetadata({
           format: "text",
           sourceType: "sentence",
@@ -54,7 +56,7 @@ export class SentenceChunker implements Chunker<SentenceChunkerOptions> {
           extra: {
             chunkIndex,
             sentenceCount: segments.length,
-            ...positionForRange(startSentence.start, endSentence.end, lineMap),
+            ...positionForRange(start, end, lineMap),
           },
         }),
         tokens: segments.reduce((sum, s) => sum + s.tokens, 0),
