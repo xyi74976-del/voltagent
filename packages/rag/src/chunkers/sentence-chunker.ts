@@ -2,7 +2,7 @@ import type { Chunk, ChunkMetadataInput, Chunker, Tokenizer } from "../types";
 import { buildMetadata } from "../utils/metadata";
 import { buildLineMap, positionForRange } from "../utils/position";
 import { splitIntoSentences } from "../utils/text";
-import { defaultTokenizer, sliceByTokenRange } from "../utils/tokenizer";
+import { defaultTokenizer } from "../utils/tokenizer";
 
 export type SentenceChunkerOptions = {
   maxTokens?: number;
@@ -27,7 +27,6 @@ export class SentenceChunker implements Chunker<SentenceChunkerOptions> {
     const sentences = splitIntoSentences(text, tokenizer);
     if (sentences.length === 0) return [];
 
-    const tokens = tokenizer.tokenize(text);
     const lineMap = buildLineMap(text);
     const chunks: Chunk[] = [];
     let current: typeof sentences = [];
@@ -38,11 +37,10 @@ export class SentenceChunker implements Chunker<SentenceChunkerOptions> {
       const startSentence = segments[0];
       const endSentence = segments[segments.length - 1];
       if (!startSentence || !endSentence) return;
-      const startTokenIndex = tokenizer.countTokens(text.slice(0, startSentence.start));
-      const endTokenIndex = tokenizer.countTokens(text.slice(0, endSentence.end)) - 1;
-      const content = sliceByTokenRange(text, tokens, startTokenIndex, endTokenIndex);
-      const start = tokens[Math.max(0, startTokenIndex)]?.start ?? 0;
-      const end = tokens[Math.min(tokens.length - 1, endTokenIndex)]?.end ?? text.length;
+      const source = text.slice(startSentence.start, endSentence.end);
+      const content = source.trim();
+      const start = startSentence.start + source.indexOf(content);
+      const end = start + content.length;
 
       chunks.push({
         id: `sentence-${chunkIndex}`,
